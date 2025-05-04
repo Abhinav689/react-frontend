@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Box, Typography, Button, CircularProgress, Card, CardContent
+  Box,
+  Typography,
+  Button,
+  CircularProgress,
+  Card,
+  CardContent
 } from "@mui/material";
 import axios from "axios";
 
@@ -10,16 +15,22 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const email = location.state?.email || localStorage.getItem("email");
+  const txnId = location.state?.txnId || localStorage.getItem("txnId");
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const txnId = location.state?.txnId || "";
 
   useEffect(() => {
     if (!email || email === "null") {
       console.warn("No valid email found. Redirecting to login.");
       navigate("/login");
       return;
+    }
+
+    // Save email and txnId for future use
+    localStorage.setItem("email", email);
+    if (txnId) {
+      localStorage.setItem("txnId", txnId);
     }
 
     const fetchUser = async () => {
@@ -38,10 +49,11 @@ const Dashboard = () => {
     };
 
     fetchUser();
-  }, [email, navigate]);
+  }, [email, txnId, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("email");
+    localStorage.removeItem("txnId");
     navigate("/login");
   };
 
@@ -59,16 +71,15 @@ const Dashboard = () => {
       <Card elevation={4} sx={{ borderRadius: 4, p: 3, bgcolor: "#f9f9f9" }}>
         <CardContent>
           <Typography variant="h4" gutterBottom>
-            Welcome,{" "}
-            <span style={{ color: "#1976d2" }}>
+            Welcome, <span style={{ color: "#1976d2" }}>
               {user?.full_name || "User"}
             </span>
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 2 }}>
             Payment Status:{" "}
-            <span style={{ color: user?.is_paid ? "green" : "red" }}>
-              {user?.is_paid ? "Under Review" : "Incomplete"}
+            <span style={{ color: user?.status === "Under Review" ? "green" : "red" }}>
+              {user?.status || "Incomplete"}
             </span>
           </Typography>
 

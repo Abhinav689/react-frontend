@@ -1,56 +1,76 @@
 import React, { useState } from "react";
 import {
-  Box, Typography, Button, Alert, Dialog, DialogTitle,
-  DialogContent, DialogContentText, DialogActions
+  Box, Typography, Button, Alert
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const Checkout = () => {
   const navigate = useNavigate();
-
-  const [status, setStatus] = useState("Pending");
   const [loading, setLoading] = useState(false);
-  const [openGateway, setOpenGateway] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFakePayment = async () => {
-    setOpenGateway(false);
+  const handleRazorpayPayment = async () => {
     setLoading(true);
     setError("");
+    const email = localStorage.getItem("email");
 
-    const txnId = "FAKE_" + new Date().toISOString().replace(/[-T:.Z]/g, "");
-    const payload = { txnId };
-
-    console.log("Sending payment update to server:", payload);
-
-    const isSuccess = Math.random() > 0.1;
-
-    setTimeout(async () => {
-      if (isSuccess) {
-        try {
-          const res = await axios.post("http://127.0.0.1:8000/api/update-payment", payload, {
-            headers: { 'Content-Type': 'application/json' }
-          });
-
-          if (res.data.success) {
-            setStatus("Under Review");
-            alert("Payment successful. Redirecting to dashboard.");
-            navigate("/dashboard", { state: { txnId } });
-          } else {
-            setError(res.data.message || "Payment succeeded, but update failed.");
-          }
-        } catch (err) {
-          console.error("Payment update error:", err);
-          const serverMsg = err.response?.data?.message || "Server error during payment update.";
-          setError(serverMsg);
-        }
-      } else {
-        setError("Fake payment failed. Please try again.");
-      }
-
+    if (!email) {
+      setError("Email not found. Please login again.");
       setLoading(false);
-    }, 1500);
+      return;
+    }
+
+    try {
+      const { data } = await axios.post("http://127.0.0.1:8000/api/create-order", {
+        amount: 15000,
+      });
+
+      const options = {
+        key: data.key,
+        amount: 15000 * 100,
+        currency: "INR",
+        name: "Event Registration",
+        description: "Race Registration Fee",
+        order_id: data.order_id,
+        handler: async (response) => {
+          try {
+            const verification = await axios.post("http://127.0.0.1:8000/api/verify-payment", {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              email: email,
+            });
+
+            if (verification.data.success) {
+              alert("Payment successful!");
+              navigate("/dashboard", {
+                state: {
+                  txnId: response.razorpay_payment_id,
+                  email: email,
+                },
+              });
+            } else {
+              setError("Payment verification failed.");
+            }
+          } catch (err) {
+            console.error("Verification Error:", err);
+            setError("Payment was made but verification failed.");
+          }
+        },
+        prefill: { email },
+        theme: { color: "#3399cc" }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", () => setLoading(false));
+      rzp.open();
+    } catch (err) {
+      console.error("Order creation failed:", err);
+      setError("Unable to create order. Please try again.");
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -62,46 +82,19 @@ const Checkout = () => {
       <Typography variant="body2" color="text.secondary" gutterBottom>
         "This fee only gives access to participate in the race subject to approval by the host and organizers of the race."
       </Typography>
-      <Typography variant="h6" color={status === "Pending" ? "error" : "primary"} mt={2}>
-        Status: {status}
-      </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ my: 2 }}>
-          {error}
-        </Alert>
+        <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>
       )}
 
       <Button
-        onClick={() => setOpenGateway(true)}
+        onClick={handleRazorpayPayment}
         variant="contained"
         sx={{ mt: 2 }}
         disabled={loading}
       >
         {loading ? "Processing..." : "Pay ₹15,000"}
       </Button>
-
-      <Dialog open={openGateway} onClose={() => setOpenGateway(false)}>
-        <DialogTitle>Fake Payment Gateway</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Confirm payment of ₹15,000 for registration?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenGateway(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleFakePayment}
-            variant="contained"
-            color="success"
-            disabled={loading}
-          >
-            Confirm Payment
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

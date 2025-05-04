@@ -22,6 +22,8 @@ const AdminDashboard = () => {
       const res = await axios.get("http://127.0.0.1:8000/api/users");
       if (res.data.success) {
         setUsers(res.data.data);
+      } else {
+        setMessage("No users found.");
       }
     } catch (err) {
       setMessage("Failed to fetch users.");
@@ -65,14 +67,18 @@ const AdminDashboard = () => {
               <p><strong>S.No:</strong> {user.id}</p>
               <p><strong>Phone:</strong> {user.phone}</p>
               <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Status:</strong> {user.status}</p>
+              <p><strong>Status:</strong> 
+                <span style={{ color: user.status === 'Under Review' ? 'green' : 'red' }}>
+                  {user.status}
+                </span>
+              </p>
               <p><strong>Txn ID:</strong> {user.payment_id || "N/A"}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Popup for user details */}
+      {/* Dialog for detailed user info */}
       <Dialog open={!!selectedUser} onClose={() => setSelectedUser(null)} maxWidth="md" fullWidth>
         {selectedUser && (
           <>
@@ -89,8 +95,12 @@ const AdminDashboard = () => {
                 <Grid item xs={12} sm={8}>
                   <Typography><strong>Email:</strong> {selectedUser.email}</Typography>
                   <Typography><strong>Phone:</strong> {selectedUser.phone}</Typography>
-                  <Typography><strong>Status:</strong> {selectedUser.status}</Typography>
-                  <Typography><strong>Txn ID:</strong> {selectedUser.payment_id}</Typography>
+                  <Typography><strong>Status:</strong> 
+                    <span style={{ color: selectedUser.status === 'Under Review' ? 'green' : 'red' }}>
+                      {selectedUser.status}
+                    </span>
+                  </Typography>
+                  <Typography><strong>Txn ID:</strong> {selectedUser.payment_id || "N/A"}</Typography>
                   <Typography><strong>ID Type:</strong> {selectedUser.id_proof_type}</Typography>
                   <Typography><strong>ID Number:</strong> {selectedUser.id_proof_number}</Typography>
                   <Typography><strong>Address:</strong> {`${selectedUser.address}, ${selectedUser.city}, ${selectedUser.state}, ${selectedUser.country}`}</Typography>
